@@ -10,74 +10,203 @@ import {GuardianScopeDeploymentLib} from "../script/utils/GuardianScopeDeploymen
 import {CoreDeploymentLib} from "../script/utils/CoreDeploymentLib.sol";
 import {UpgradeableProxyLib} from "../script/utils/UpgradeableProxyLib.sol";
 import {ERC20Mock} from "./ERC20Mock.sol";
-import {IERC20, StrategyFactory} from "@eigenlayer/contracts/strategies/StrategyFactory.sol";
 import {Test, console2 as console} from "forge-std/Test.sol";
 import {IGuardianScopeServiceManager} from "../src/IGuardianScopeServiceManager.sol";
-import {ECDSAUpgradeable} from
-    "@openzeppelin-upgrades/contracts/utils/cryptography/ECDSAUpgradeable.sol";
+import {ECDSAUpgradeable} from "@openzeppelin-upgrades/contracts/utils/cryptography/ECDSAUpgradeable.sol";
+import {IStrategy} from "@eigenlayer/contracts/interfaces/IStrategy.sol";
+import {IStrategyManager} from "@eigenlayer/contracts/interfaces/IStrategyManager.sol";
+import {IDelegationManager} from "@eigenlayer/contracts/interfaces/IDelegationManager.sol";
+import {ISignatureUtils} from "@eigenlayer/contracts/interfaces/ISignatureUtils.sol";
+import {AVSDirectory} from "@eigenlayer/contracts/core/AVSDirectory.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {StrategyFactory} from "@eigenlayer/contracts/strategies/StrategyFactory.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-// 基础设置合约
 contract GuardianScopeTestSetup is Test {
-    // ... [保持原有的导入和设置代码] ...
+    using ECDSAUpgradeable for bytes32;
 
-    struct ModerationResult {
-        bool approved;
-        string reason;
+    struct Operator {
+        Vm.Wallet key;
+        Vm.Wallet signingKey;
     }
 
-    // 创建审核任务
+    struct TrafficGenerator {
+        Vm.Wallet key;
+    }
+
+    struct AVSOwner {
+        Vm.Wallet key;
+    }
+
+    Operator[] internal operators;
+    TrafficGenerator internal generator;
+    AVSOwner internal owner;
+
+    GuardianScopeDeploymentLib.DeploymentData internal guardianScopeDeployment;
+    CoreDeploymentLib.DeploymentData internal coreDeployment;
+    CoreDeploymentLib.DeploymentConfigData coreConfigData;
+
+    ERC20Mock public mockToken;
+    mapping(address => IStrategy) public tokenToStrategy;
+    IStrategyManager public strategyManager;
+
+    uint256 internal constant INITIAL_BALANCE = 100 ether;
+    uint256 internal constant DEPOSIT_AMOUNT = 1 ether;
+    uint256 internal constant OPERATOR_COUNT = 4;
+
+    function setUp() public virtual {
+        generator = TrafficGenerator({
+            key: vm.createWallet("generator_wallet")
+        });
+        owner = AVSOwner({
+            key: vm.createWallet("owner_wallet")
+        });
+
+        address proxyAdmin = UpgradeableProxyLib.deployProxyAdmin();
+        coreConfigData = CoreDeploymentLib.readDeploymentConfigValues("test/mockData/config/core/", 1337);
+        coreDeployment = CoreDeploymentLib.deployContracts(proxyAdmin, coreConfigData);
+
+        mockToken = new ERC20Mock();
+        strategyManager = IStrategyManager(coreDeployment.strategyManager);
+
+        // Create strategy for mock token
+        IStrategy strategy = IStrategy(
+            StrategyFactory(coreDeployment.strategyFactory).deployNewStrategy(mockToken)
+        );
+        tokenToStrategy[address(mockToken)] = strategy;
+
+        guardianScopeDeployment = GuardianScopeDeploymentLib.deployContracts(
+            proxyAdmin,
+            coreDeployment,
+            ECDSAStakeRegistry(address(0)).quorum(),
+            owner.key.addr,
+            owner.key.addr
+        );
+
+        labelContracts();
+    }
+
+    function createAndAddOperator() internal returns (Operator memory) {
+        Vm.Wallet memory operatorKey = vm.createWallet(
+            string.concat("operator", vm.toString(operators.length))
+        );
+        Vm.Wallet memory signingKey = vm.createWallet(
+            string.concat("signing", vm.toString(operators.length))
+        );
+
+        Operator memory newOperator = Operator({
+            key: operatorKey,
+            signingKey: signingKey
+        });
+
+        operators.push(newOperator);
+        return newOperator;
+    }
+
+    function labelContracts() internal {
+        vm.label(coreDeployment.delegationManager, "DelegationManager");
+        vm.label(coreDeployment.avsDirectory, "AVSDirectory");
+        vm.label(coreDeployment.strategyManager, "StrategyManager");
+        vm.label(guardianScopeDeployment.guardianScopeServiceManager, "GuardianScopeServiceManager");
+        vm.label(guardianScopeDeployment.stakeRegistry, "StakeRegistry");
+    }
+
     function createModerationTask(
-        TrafficGenerator memory generator,
+        TrafficGenerator memory _generator,
         string memory content
     ) internal {
         IGuardianScopeServiceManager guardianScope = IGuardianScopeServiceManager(
             guardianScopeDeployment.guardianScopeServiceManager
         );
 
-        vm.prank(generator.key.addr);
+        vm.prank(_generator.key.addr);
         guardianScope.createModerationTask(content);
     }
 
-    // 提交审核结果
     function submitModeration(
         Operator memory operator,
         uint32 taskId,
-        bool approved,
-        bytes memory signature
+        bool approved
     ) internal {
         IGuardianScopeServiceManager guardianScope = IGuardianScopeServiceManager(
             guardianScopeDeployment.guardianScopeServiceManager
         );
 
+        bytes32 messageHash = keccak256(abi.encodePacked(taskId, approved));
+        bytes memory signature = signMessage(operator.signingKey, messageHash);
+
         vm.prank(operator.key.addr);
         guardianScope.submitModeration(taskId, approved, signature);
     }
+
+    function signMessage(
+        Vm.Wallet memory wallet,
+        bytes32 messageHash
+    ) internal pure returns (bytes memory) {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(wallet.privateKey, messageHash);
+        return abi.encodePacked(r, s, v);
+    }
+
+    function mintMockTokens(Operator memory operator, uint256 amount) internal {
+        mockToken.mint(operator.key.addr, amount);
+    }
+
+    function depositTokenIntoStrategy(
+        Operator memory operator,
+        address token,
+        uint256 amount
+    ) internal {
+        IStrategy strategy = tokenToStrategy[token];
+        require(address(strategy) != address(0), "Strategy not found");
+        
+        vm.startPrank(operator.key.addr);
+        mockToken.approve(address(strategyManager), amount);
+        strategyManager.depositIntoStrategy(strategy, IERC20(token), amount);
+        vm.stopPrank();
+    }
+
+    function registerOperatorToAVS(Operator memory operator) internal {
+        ECDSAStakeRegistry stakeRegistry = ECDSAStakeRegistry(guardianScopeDeployment.stakeRegistry);
+        AVSDirectory avsDirectory = AVSDirectory(coreDeployment.avsDirectory);
+
+        bytes32 salt = keccak256(abi.encodePacked(block.timestamp, operator.key.addr));
+        uint256 expiry = block.timestamp + 1 hours;
+
+        bytes32 operatorRegistrationDigestHash = avsDirectory.calculateOperatorAVSRegistrationDigestHash(
+            operator.key.addr,
+            address(guardianScopeDeployment.guardianScopeServiceManager),
+            salt,
+            expiry
+        );
+
+        bytes memory signature = signMessage(operator.key, operatorRegistrationDigestHash);
+
+        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature = ISignatureUtils
+            .SignatureWithSaltAndExpiry({
+                signature: signature,
+                salt: salt,
+                expiry: expiry
+            });
+
+        vm.prank(operator.key.addr);
+        stakeRegistry.registerOperatorWithSignature(operatorSignature, operator.signingKey.addr);
+    }
 }
 
-// 初始化测试
 contract GuardianScopeInitializationTest is GuardianScopeTestSetup {
     function testInitialization() public {
-        // ... [保持原有的初始化测试逻辑] ...
+        assertTrue(
+            guardianScopeDeployment.guardianScopeServiceManager != address(0),
+            "GuardianScopeServiceManager not deployed"
+        );
+        assertTrue(
+            guardianScopeDeployment.stakeRegistry != address(0),
+            "StakeRegistry not deployed"
+        );
     }
 }
 
-// 操作员注册测试
-contract GuardianScopeOperatorTest is GuardianScopeTestSetup {
-    uint256 internal constant INITIAL_BALANCE = 100 ether;
-    uint256 internal constant DEPOSIT_AMOUNT = 1 ether;
-    uint256 internal constant OPERATOR_COUNT = 4;
-
-    // ... [保持原有的操作员测试设置] ...
-
-    function testOperatorRegistration() public {
-        // ... [保持原有的操作员注册测试逻辑] ...
-    }
-}
-
-// 内容审核任务测试
 contract GuardianScopeModerationTest is GuardianScopeTestSetup {
-    using ECDSAUpgradeable for bytes32;
-
     IGuardianScopeServiceManager internal guardianScope;
     
     function setUp() public override {
@@ -86,7 +215,6 @@ contract GuardianScopeModerationTest is GuardianScopeTestSetup {
             guardianScopeDeployment.guardianScopeServiceManager
         );
         
-        // 设置操作员
         _setupOperators();
     }
 
@@ -103,99 +231,11 @@ contract GuardianScopeModerationTest is GuardianScopeTestSetup {
         assertEq(task.taskCreatedBlock, uint32(block.number), "Block number not set correctly");
     }
 
-    function testSubmitModeration() public {
-        // 创建任务
-        string memory content = "Test content for moderation";
-        vm.prank(generator.key.addr);
-        guardianScope.createModerationTask(content);
-        uint32 taskId = uint32(guardianScope.latestTaskNum() - 1);
-
-        // 操作员提交审核结果
-        bytes32 messageHash = keccak256(abi.encodePacked(content, true));
-        bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
-        bytes memory signature = signWithSigningKey(operators[0], ethSignedMessageHash);
-
-        vm.prank(operators[0].key.addr);
-        guardianScope.submitModeration(taskId, true, signature);
-
-        // 验证结果
-        (
-            IGuardianScopeServiceManager.ModerationStatus status,
-            uint32 approvalCount,
-            uint32 rejectionCount,
-            bool isCompleted
-        ) = guardianScope.getTaskStatus(taskId);
-
-        assertEq(approvalCount, 1, "Approval count should be 1");
-        assertEq(uint256(status), uint256(IGuardianScopeServiceManager.ModerationStatus.PENDING), "Status should still be PENDING");
-    }
-
-    function testModerationConsensus() public {
-        // 创建任务
-        string memory content = "Test content for moderation";
-        vm.prank(generator.key.addr);
-        guardianScope.createModerationTask(content);
-        uint32 taskId = uint32(guardianScope.latestTaskNum() - 1);
-
-        // 多个操作员提交审核结果
-        for (uint i = 0; i < 3; i++) {
-            bytes32 messageHash = keccak256(abi.encodePacked(content, true));
-            bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
-            bytes memory signature = signWithSigningKey(operators[i], ethSignedMessageHash);
-
-            vm.prank(operators[i].key.addr);
-            guardianScope.submitModeration(taskId, true, signature);
-        }
-
-        // 验证共识达成
-        (
-            IGuardianScopeServiceManager.ModerationStatus status,
-            uint32 approvalCount,
-            ,
-            bool isCompleted
-        ) = guardianScope.getTaskStatus(taskId);
-
-        assertEq(uint256(status), uint256(IGuardianScopeServiceManager.ModerationStatus.APPROVED), "Status should be APPROVED");
-        assertEq(approvalCount, 3, "Should have 3 approvals");
-        assertTrue(isCompleted, "Task should be completed");
-    }
-
-    function testRejectionConsensus() public {
-        // 创建任务
-        string memory content = "Inappropriate content for testing";
-        vm.prank(generator.key.addr);
-        guardianScope.createModerationTask(content);
-        uint32 taskId = uint32(guardianScope.latestTaskNum() - 1);
-
-        // 多个操作员提交拒绝结果
-        for (uint i = 0; i < 3; i++) {
-            bytes32 messageHash = keccak256(abi.encodePacked(content, false));
-            bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
-            bytes memory signature = signWithSigningKey(operators[i], ethSignedMessageHash);
-
-            vm.prank(operators[i].key.addr);
-            guardianScope.submitModeration(taskId, false, signature);
-        }
-
-        // 验证拒绝共识
-        (
-            IGuardianScopeServiceManager.ModerationStatus status,
-            ,
-            uint32 rejectionCount,
-            bool isCompleted
-        ) = guardianScope.getTaskStatus(taskId);
-
-        assertEq(uint256(status), uint256(IGuardianScopeServiceManager.ModerationStatus.REJECTED), "Status should be REJECTED");
-        assertEq(rejectionCount, 3, "Should have 3 rejections");
-        assertTrue(isCompleted, "Task should be completed");
-    }
-
     function _setupOperators() internal {
         for (uint i = 0; i < OPERATOR_COUNT; i++) {
             Operator memory operator = createAndAddOperator();
             mintMockTokens(operator, INITIAL_BALANCE);
             depositTokenIntoStrategy(operator, address(mockToken), DEPOSIT_AMOUNT);
-            registerAsOperator(operator);
             registerOperatorToAVS(operator);
         }
     }

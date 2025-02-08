@@ -10,11 +10,12 @@
     "start:traffic": "ts-node scripts/createTraffic.ts",
     "compile": "hardhat compile",
     "deploy:core": "forge script script/CoreDeployer.s.sol --broadcast --fork-url http://localhost:8545",
-    "deploy:guardianscope": "forge script script/GuardianScopeDeployer.s.sol --broadcast --fork-url http://localhost:8545",
+    "deploy:guardianscope": "forge script script/guardianscope/GuardianScopeDeployer.s.sol --broadcast --fork-url http://localhost:8545",
     "deploy:all": "npm run deploy:core && npm run deploy:guardianscope",
     "extract:abis": "hardhat extract-abis",
     "lint": "solhint 'contracts/**/*.sol'",
     "lint:fix": "solhint 'contracts/**/*.sol' --fix",
+    "build": "cd contracts && forge build",
     "format": "prettier --write .",
     "coverage": "hardhat coverage"
   },
