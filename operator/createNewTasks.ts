@@ -7,48 +7,81 @@ dotenv.config();
 // Setup env variables
 const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
 const wallet = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
-/// TODO: Hack
 let chainId = 31337;
 
-const avsDeploymentData = JSON.parse(fs.readFileSync(path.resolve(__dirname, `../contracts/deployments/hello-world/${chainId}.json`), 'utf8'));
-const helloWorldServiceManagerAddress = avsDeploymentData.addresses.helloWorldServiceManager;
-const helloWorldServiceManagerABI = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../abis/HelloWorldServiceManager.json'), 'utf8'));
-// Initialize contract objects from ABIs
-const helloWorldServiceManager = new ethers.Contract(helloWorldServiceManagerAddress, helloWorldServiceManagerABI, wallet);
+// Load deployments and contracts
+const avsDeploymentData = JSON.parse(
+    fs.readFileSync(
+        path.resolve(__dirname, `../../contracts/deployments/guardianscope/${chainId}.json`), 
+        'utf8'
+    )
+);
 
+const guardianScopeABI = JSON.parse(
+    fs.readFileSync(
+        path.resolve(__dirname, '../../abis/GuardianScopeServiceManager.json'), 
+        'utf8'
+    )
+);
 
-// Function to generate random names
-function generateRandomName(): string {
-    const adjectives = ['Quick', 'Lazy', 'Sleepy', 'Noisy', 'Hungry'];
-    const nouns = ['Fox', 'Dog', 'Cat', 'Mouse', 'Bear'];
-    const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-    const noun = nouns[Math.floor(Math.random() * nouns.length)];
-    const randomName = `${adjective}${noun}${Math.floor(Math.random() * 1000)}`;
-    return randomName;
-  }
+const guardianScopeServiceManager = new ethers.Contract(
+    avsDeploymentData.addresses.guardianScopeServiceManager,
+    guardianScopeABI,
+    wallet
+);
 
-async function createNewTask(taskName: string) {
-  try {
-    // Send a transaction to the createNewTask function
-    const tx = await helloWorldServiceManager.createNewTask(taskName);
-    
-    // Wait for the transaction to be mined
-    const receipt = await tx.wait();
-    
-    console.log(`Transaction successful with hash: ${receipt.hash}`);
-  } catch (error) {
-    console.error('Error sending transaction:', error);
-  }
+// Function to generate random content for testing moderation
+function generateTestContent(): string {
+    // Test cases representing different content types
+    const testCases = [
+        {
+            content: "This is a friendly message about puppies and kittens playing together.",
+            category: "safe"
+        },
+        {
+            content: "This message contains words that might be inappropriate: [FILTERED].",
+            category: "questionable"
+        },
+        {
+            content: "A perfectly normal article about cooking recipes and gardening tips.",
+            category: "safe"
+        },
+        {
+            content: "Content that should be reviewed carefully due to sensitive topics.",
+            category: "review"
+        },
+        {
+            content: "Educational content about science and mathematics.",
+            category: "safe"
+        }
+    ];
+
+    const selectedCase = testCases[Math.floor(Math.random() * testCases.length)];
+    console.log(`Generated ${selectedCase.category} content for moderation`);
+    return selectedCase.content;
 }
 
-// Function to create a new task with a random name every 15 seconds
+async function createModerationTask(content: string) {
+    try {
+        console.log(`Creating moderation task for content: ${content}`);
+        const tx = await guardianScopeServiceManager.createModerationTask(content);
+        const receipt = await tx.wait();
+        console.log(`Task created successfully. Transaction hash: ${receipt.hash}`);
+    } catch (error) {
+        console.error('Error creating moderation task:', error);
+    }
+}
+
+// Function to create new tasks periodically
 function startCreatingTasks() {
-  setInterval(() => {
-    const randomName = generateRandomName();
-    console.log(`Creating new task with name: ${randomName}`);
-    createNewTask(randomName);
-  }, 24000);
+    console.log("Starting to generate moderation tasks...");
+    
+    // Create tasks every 24 seconds
+    setInterval(() => {
+        const content = generateTestContent();
+        createModerationTask(content);
+    }, 24000);
 }
 
-// Start the process
+// Start the task generation process
 startCreatingTasks();

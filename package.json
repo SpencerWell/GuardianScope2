@@ -6,7 +6,7 @@
   "scripts": {
     "test": "hardhat test",
     "start:anvil": "anvil --block-time 12",
-    "start:operator": "ts-node operator/src/index.ts",
+    "start:operator": "ts-node operator/index.ts",
     "start:traffic": "ts-node scripts/createTraffic.ts",
     "compile": "hardhat compile",
     "deploy:core": "cd contracts && forge script script/DeployEigenLayerCore.s.sol --rpc-url http://localhost:8545 --broadcast --optimize --optimizer-runs 200 --via-ir",
