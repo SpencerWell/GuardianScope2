@@ -1,54 +1,125 @@
-# Hello World AVS
+# GuardianScope: Decentralized AI Content Moderation Protocol
 
-Welcome to the Hello World AVS. This project shows you the simplest functionality you can expect from an AVS. It will give you a concrete understanding of the basic components. For new users, please find [this video walkthrough](https://drive.google.com/file/d/1P6uA6kYWCbpeorTjADuoTlQ-q8uqwPZf/view?usp=sharing) of the hello world AVS repository.
+## Table of Contents
+- [GuardianScope: Decentralized AI Content Moderation Protocol](#guardianscope-decentralized-ai-content-moderation-protocol)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Features](#features)
+    - [Decentralized Moderation](#decentralized-moderation)
+    - [AI-Powered Analysis](#ai-powered-analysis)
+  - [Technical Components](#technical-components)
+    - [Smart Contract Infrastructure](#smart-contract-infrastructure)
+    - [EigenLayer Integration](#eigenlayer-integration)
+    - [AI Agent System](#ai-agent-system)
+- [GuardianScope AVS](#guardianscope-avs)
+  - [Architecture](#architecture)
+  - [AVS User Flow](#avs-user-flow)
+  - [Local Devnet Deployment](#local-devnet-deployment)
+    - [Development Environment](#development-environment)
+      - [Non-Nix Environment](#non-nix-environment)
+      - [Nix Environment](#nix-environment)
+    - [Quick Start](#quick-start)
+      - [Start Anvil Chain](#start-anvil-chain)
+      - [Deploy Contracts and Start Operator](#deploy-contracts-and-start-operator)
+      - [Test Content Moderation](#test-content-moderation)
+    - [Help and Support](#help-and-support)
+    - [Contact Us](#contact-us)
+    - [Disclaimers](#disclaimers)
+    - [Testing](#testing)
+
+## Overview
+
+GuardianScope is a pioneering decentralized content moderation protocol powered by AI Agents and built on EigenLayer's AVS (Actively Validated Service) infrastructure. It enables automated, unbiased, and privacy-preserving content moderation for decentralized social platforms while ensuring transparency and security through blockchain technology.
+
+## Features
+
+### Decentralized Moderation
+- Distributed network of operators running AI Agents
+- Transparent decision-making process
+- Economic incentives through EigenLayer's restaking mechanism
+- Immune to centralized control and censorship
+
+### AI-Powered Analysis
+- Multi-modal content analysis (text, images, videos)
+- Real-time moderation capabilities
+- Adaptable to platform-specific requirements
+- Continuous model improvement through decentralized governance
+
+## Technical Components
+
+### Smart Contract Infrastructure
+- AVS smart contracts for coordination
+- On-chain result verification
+- Transparent reward distribution
+- Governance mechanisms
+
+### EigenLayer Integration
+- Implements ServiceManagerBase for signature aggregation
+- Utilizes BLS signatures for efficient consensus
+- Leverages restaking for economic security
+- Slashing conditions for malicious behavior
+
+### AI Agent System
+- Modular design supporting multiple AI models
+- NLP models for text content analysis
+- Computer vision models for image/video moderation
+- Encrypted inference capabilities
+
+# GuardianScope AVS
+
+Welcome to the GuardianScope AVS. This project demonstrates a decentralized content moderation service built on EigenLayer. It provides automated, unbiased, and privacy-preserving content moderation for Web3 applications through AI-powered analysis.
 
 ## Architecture
 
-![hello-world-png](./assets/hello-world-diagramv2.png)
+```
++-------------------+       +-------------------+       +-------------------+
+|                   |       |                   |       |                   |
+|  Content          |       |  GuardianScope    |       |  AI-Powered      |
+|  Publisher        |<----->|  AVS Contract     |<----->|  Operators       |
+|                   |       |                   |       |                   |
++-------------------+       +-------------------+       +-------------------+
+```
 
-### AVS User Flow
+## AVS User Flow
 
-1) AVS consumer requests a "Hello World" message to be generated and signed.
-2) HelloWorld contract receives the request and emits a NewTaskCreated event for the request.
-3) All Operators who are registered to the AVS and has staked, delegated assets takes this request. Operator generates the requested message, hashes it, and signs the hash with their private key.
-4) Each Operator submits their signed hash back to the HelloWorld AVS contract.
-5) If the Operator is registered to the AVS and has the minimum needed stake, the submission is accepted.
+1. Content publisher submits content for moderation through the GuardianScope contract.
+2. GuardianScope contract emits a `NewTaskCreated` event for the moderation request.
+3. All registered and staked Operators receive this request and process it through their AI models.
+4. Each Operator generates a moderation decision (approve/reject), hashes it with the content, and signs the hash.
+5. Operators submit their signed decisions back to the GuardianScope contract.
+6. The contract verifies operator eligibility and stake before accepting the submission.
 
-That's it. This simple flow highlights some of the core mechanics of how AVSs work.
+This flow demonstrates how GuardianScope leverages EigenLayer's security and AI-powered operators for decentralized content moderation.
 
-# Local Devnet Deployment
+## Local Devnet Deployment
 
-The following instructions explain how to manually deploy the AVS from scratch including EigenLayer and AVS specific contracts using Foundry (forge) to a local anvil chain, and start Typescript Operator application and tasks.
+The following instructions explain how to deploy GuardianScope from scratch including EigenLayer and AVS specific contracts using Foundry to a local anvil chain, and start the AI-powered Operator application.
 
-## Development Environment
-This section describes the tooling required for local development.
+### Development Environment
 
-### Non-Nix Environment
+#### Non-Nix Environment
 Install dependencies:
+- Node
+- Typescript
+- ts-node
+- tcs
+- npm
+- Foundry
+- ethers
+- Python 3.9+ (for AI models)
+- PyTorch
 
-- [Node](https://nodejs.org/en/download/)
-- [Typescript](https://www.typescriptlang.org/download)
-- [ts-node](https://www.npmjs.com/package/ts-node)
-- [tcs](https://www.npmjs.com/package/tcs#installation)
-- [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
-- [Foundry](https://getfoundry.sh/)
-- [ethers](https://www.npmjs.com/package/ethers)
-
-### Nix Environment 
-On [Nix](https://nixos.org/) platforms, if you already have the proper Nix configuration, you can build the project’s artifacts inside a `nix develop` shell
-``` sh
+#### Nix Environment
+On Nix platforms:
+```bash
 nix develop
 ```
-Otherwise, please refer to [installed and configured](./docs/nix-setup-guide.md) section.
 
-## Quick start
+### Quick Start
 
-### Start Anvil Chain
-
-In terminal window #1, execute the following commands:
-
-```sh
-
+#### Start Anvil Chain
+In terminal window #1:
+```bash
 # Install npm packages
 npm install
 
@@ -56,171 +127,61 @@ npm install
 npm run start:anvil
 ```
 
-### Deploy Contracts and Start Operator
-
-Open a separate terminal window #2, execute the following commands
-
-```sh
-# Setup .env file
+#### Deploy Contracts and Start Operator
+In terminal window #2:
+```bash
+# Setup .env files
 cp .env.example .env
 cp contracts/.env.example contracts/.env
 
-# Updates dependencies if necessary and builds the contracts 
+# Build contracts
 npm run build
 
-# Deploy the EigenLayer contracts
+# Deploy EigenLayer contracts
 npm run deploy:core
 
-# Deploy the Hello World AVS contracts
-npm run deploy:hello-world
+# Deploy GuardianScope contracts
+npm run deploy:guardianscope
 
-# (Optional) Update ABIs
-npm run extract:abis
-
-# Start the Operator application
+# Start the AI-powered Operator
 npm run start:operator
-
 ```
 
-### Create and Claim Payments
-
-In a terminal, start a new instance of anvil and deploy the core and avs contracts
-```sh
-# Start anvil
-npm run start:anvil-quick
-# Deploy the EigenLayer contracts
-npm run deploy:core
-
-# Deploy the Hello World AVS contracts
-npm run deploy:hello-world
-
-```
-
-In another terminal, run:
-
-```sh
-# Create payment roots
-npm run create-payments-root
-
-# Claim created payment
-npm run claim-payments
-```
-
-To run operator directed payments, run:
-```sh
-#Create payment roots
-npm run create-operator-directed-payments-root
-
-# Claim created payment
-npm run claim-payments
-```
-
-In order to create and claim multiple payments (run the above two commands more than once), you must wait up to 5 minutes.
-
-
-
-
-### Create Hello-World-AVS Tasks
-
-Open a separate terminal window #3, execute the following commands
-
-```sh
-# Start the createNewTasks application 
-npm run start:traffic
+#### Test Content Moderation
+In terminal window #3:
+```bash
+# Submit test content for moderation
+npm run start:test-content
 ```
 
 ### Help and Support
 
-For help and support deploying and modifying this repo for your AVS, please:
-
-1. Open a ticket via the intercom link at [support.eigenlayer.xyz](https://support.eigenlayer.xyz).
-2. Include the necessary troubleshooting information for your environment:
-  * Local anvil testing:
-    * Redeploy your local test using `--revert-strings debug` flag via the following commands and retest: `npm run deploy:core-debug && npm run deploy:hello-world-debug`
-    * Include the full stacktrace from your error as a .txt file attachment.
-    * Create a minimal repo that demonstrates the behavior (fork or otherwise)
-    * Steps require to reproduce issue (compile and cause the error)
-  * Holesky testing:
-    * Ensure contracts are verified on Holesky. Eg `forge verify-contract --chain-id 17000 --num-of-optimizations 200 src/YourContract.sol:YourContract YOUR_CONTRACT_ADDRESS`
-    * Send us your transaction hash where your contract is failing. We will use Tenderly to debug (adjust gas limit) and/or cast to re-run the transaction (eg `cast call --trace "trace_replayTransaction(0xTransactionHash)"`).
-
+For help and support deploying and modifying this repo:
+1. Open a ticket via support.eigenlayer.xyz
+2. Include environment details:
+   - For local testing: Include debug logs with `--revert-strings debug`
+   - For testnet: Provide transaction hashes and verified contracts
 
 ### Contact Us
 
-If you're planning to build an AVS and would like to speak with a member of the EigenLayer DevRel team to discuss your ideas or architecture, please fill out this form and we'll be in touch shortly: [EigenLayer AVS Intro Call](https://share.hsforms.com/1BksFoaPjSk2l3pQ5J4EVCAein6l)
-
+If you're planning to build on GuardianScope or integrate it into your platform, please fill out [this form](https://eigenlayer.xyz/contact) and we'll be in touch.
 
 ### Disclaimers
 
-- This repo is meant currently intended for _local anvil development testing_. Holesky deployment support will be added shortly.
-- Users who wish to build an AVS for Production purposes will want to migrate from the `ECDSAServiceManagerBase` implementation in `HelloWorldServiceManager.sol` to a BLS style architecture using [RegistryCoordinator](https://github.com/Layr-Labs/eigenlayer-middleware/blob/dev/docs/RegistryCoordinator.md).
-
-# Appendix (Future Capabilities In Progress)
-
-## Adding a New Strategy
-
-## Potential Enhancements to the AVS (for learning purposes)
-
-The architecture can be further enhanced via:
-
-- the nature of the request is more sophisticated than generating a constant string
-- the operators might need to coordinate with each other
-- the type of signature is different based on the constraints of the service
-- the type and amount of security used to secure the AVS
-
-## Rust Operator instructions
-
-### Anvil Deployment
-
-1. Start Anvil Chain
-
-In terminal window #1, execute the following commands:
-```sh
-anvil
-```
-
-2. Deploy Contracts
-
-Open a separate terminal window #2, execute the following commands
-
-```
-make deploy-eigenlayer-contracts
-
-make deploy-helloworld-contracts
-```
-
-3. Start Operator
-
-```sh
-make start-rust-operator
-```
-4. Spam Tasks
-
-```sh
-make spam-rust-tasks
-```
+- This repo is currently intended for local development testing
+- Testnet deployment support will be added soon
+- Production deployments should migrate to BLS signature architecture
 
 ### Testing
 
-1. Start Anvil Chain
-
-In terminal window #1, execute the following commands:
-```sh
+```bash
+# Start anvil chain
 anvil
-```
 
-2. Deploy Contracts
-
-Open a separate terminal window #2, execute the following commands
-
-```
+# In another terminal
 make deploy-eigenlayer-contracts
-
-make deploy-helloworld-contracts
+make deploy-guardianscope-contracts
+make test-moderation
 ```
 
-3. Run this command
-
-```
-cargo test --workspace
-```
+The operator application includes comprehensive tests for both the smart contracts and AI moderation components. Review the `test/` directory for detailed test cases.
