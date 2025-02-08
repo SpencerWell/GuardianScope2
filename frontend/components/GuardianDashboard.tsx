@@ -14,9 +14,9 @@ export default function GuardianDashboard() {
   // Mock data for demo - replace with actual contract calls
   useEffect(() => {
     setTasks([
-      { id: 1, content: "First moderation request about community guidelines", status: "pending", votes: { approve: 2, reject: 1 }, timestamp: "2024-02-08 10:30" },
-      { id: 2, content: "Review of user-submitted content for appropriateness", status: "completed", votes: { approve: 3, reject: 0 }, timestamp: "2024-02-08 09:15" },
-      { id: 3, content: "Checking content against platform policies", status: "pending", votes: { approve: 1, reject: 2 }, timestamp: "2024-02-08 11:45" }
+      { id: 1, content: "First moderation request about community guidelines", status: "pending", votes: { approve: 2, reject: 1 }, timestamp: "2025-02-08 10:30" },
+      { id: 2, content: "Review of user-submitted content for appropriateness", status: "completed", votes: { approve: 3, reject: 0 }, timestamp: "2025-02-08 09:15" },
+      { id: 3, content: "Checking content against platform policies", status: "pending", votes: { approve: 1, reject: 2 }, timestamp: "2025-02-08 11:45" }
     ]);
 
     setOperators([
@@ -37,7 +37,7 @@ export default function GuardianDashboard() {
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Guardian Scope Dashboard</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Guardian Scope Dashboard based on EigenLayer + OpenAI </h1>
           <p className="text-gray-600">Decentralized Content Moderation System</p>
         </div>
 

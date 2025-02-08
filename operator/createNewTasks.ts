@@ -12,14 +12,14 @@ let chainId = 31337;
 // Load deployments and contracts
 const avsDeploymentData = JSON.parse(
     fs.readFileSync(
-        path.resolve(__dirname, `../../contracts/deployments/guardianscope/${chainId}.json`), 
+        path.resolve(__dirname, `../contracts/deployments/guardianscope/${chainId}.json`), 
         'utf8'
     )
 );
 
 const guardianScopeABI = JSON.parse(
     fs.readFileSync(
-        path.resolve(__dirname, '../../abis/GuardianScopeServiceManager.json'), 
+        path.resolve(__dirname, '../abis/GuardianScopeServiceManager.json'), 
         'utf8'
     )
 );
